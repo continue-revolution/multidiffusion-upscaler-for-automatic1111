@@ -63,6 +63,7 @@ import torch
 import numpy as np
 import gradio as gr
 
+from extensions.adetailer.adetailer import mask
 from modules import sd_samplers, images, shared, devices, processing, scripts
 from modules.shared import opts
 from modules.processing import opt_f, get_fixed_seed
@@ -208,6 +209,24 @@ class Script(scripts.Script):
                                 reuse_seed = gr.Button(value='♻️', variant='tool', elem_id=f'MD-{tab}-{i}-reuse_seed')
                                 random_seed.click(fn=lambda: -1, outputs=seed, show_progress=False)
                                 reuse_seed.click(fn=None, inputs=seed, outputs=seed, _js=f'e => getSeedInfo({is_t2i}, {i+1}, e)', show_progress=False)
+                            
+                            mask_image = gr.Image(label='Region Mask')
+                            with gr.Row():
+                                def create_mask(ref: np.ndarray, x: float, y: float, w: float, h: float):
+                                    mask = np.zeros_like(ref)
+                                    x, y, w, h = int(x * ref.shape[1]), int(y * ref.shape[0]), int(w * ref.shape[1]), int(h * ref.shape[0])
+                                    mask[y:y+h, x:x+w] = 255
+                                    return mask
+                                def create_mask_reverse(ref: np.ndarray, x: float, y: float, w: float, h: float):
+                                    mask = np.ones_like(ref)
+                                    x, y, w, h = int(x * ref.shape[1]), int(y * ref.shape[0]), int(w * ref.shape[1]), int(h * ref.shape[0])
+                                    mask[y:y+h, x:x+w] = 0
+                                    mask = mask * 255
+                                    return mask
+                                save_region_btn = gr.Button(value="Save Region as a Mask")
+                                save_region_btn.click(fn=create_mask, inputs=[ref_image, x, y, w, h], outputs=[mask_image])
+                                save_region_btn_reverse = gr.Button(value="Save Reverse Region as a Mask")
+                                save_region_btn_reverse.click(fn=create_mask_reverse, inputs=[ref_image, x, y, w, h], outputs=[mask_image])
 
                         control = [e, x, y, w, h, prompt, neg_prompt, blend_mode, feather_ratio, seed]
                         assert len(control) == NUM_BBOX_PARAMS
